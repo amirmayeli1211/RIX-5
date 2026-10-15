@@ -1,0 +1,5 @@
+# Replace agent.example.com with a domain whose DNS A/AAAA points at your VPN server.
+# Caddy provides HTTPS automatically. Keep the Python Agent bound to 127.0.0.1.
+agent.example.com {
+    reverse_proxy 127.0.0.1:9843
+}

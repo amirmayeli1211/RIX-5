@@ -1,0 +1,10 @@
+.env
+*.db
+*.sqlite
+*.sqlite3
+.rix-dev-fernet-key
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/

@@ -1,0 +1,22 @@
+[Unit]
+Description=RIX STORM authenticated Xray API Agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rixagent
+Group=rixagent
+WorkingDirectory=/opt/rix-storm-agent
+EnvironmentFile=/etc/rix-storm-agent.env
+ExecStart=/opt/rix-storm-agent/venv/bin/uvicorn xray_agent:app --host 127.0.0.1 --port 9843
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/tmp /opt/rix-storm-agent
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="welcome-row">
+  <div>
+    <div class="eyebrow">INFRASTRUCTURE / AUTO SETUP</div>
+    <h1>سرورها</h1>
+    <p class="muted">فقط مشخصات پایه را وارد کن. نصب Xray، Agent، گواهی TLS و کلیدهای Reality با یک دستور انجام می‌شود.</p>
+  </div>
+  <span class="count-chip"><b>{{ nodes|length }}</b> سرور</span>
+</section>
+
+<div class="notice notice-info">
+  <span>i</span>
+  <p><b>قبل از شروع:</b> یک VPS تازه با Debian 12 یا Ubuntu 22.04/24.04، یک دامنه که به IP همان VPS وصل است، و دسترسی شبکه به پورت‌های 80 و 443 لازم است. بعد از نصب، پورت‌های 20000 تا 20100 را هم در فایروال شرکت میزبان باز کن. نصب‌کننده سرویس‌های موجود روی پورت‌های 80/443 را بازنویسی نمی‌کند و در صورت اشغال‌بودن آن‌ها متوقف می‌شود.</p>
+</div>
+
+<section class="panel-card form-panel">
+  <div class="panel-head">
+    <div>
+      <div class="eyebrow">QUICK SERVER SETUP</div>
+      <h2>افزودن سرور</h2>
+      <p class="panel-subtitle">سه فیلد ساده؛ آدرس Agent، توکن، گواهی TLS و Reality بعداً خودکار آماده می‌شوند.</p>
+    </div>
+    <span class="panel-step">01 / SERVER</span>
+  </div>
+  <form method="post" action="/nodes/create" class="form-grid">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="enabled" value="true">
+    <label class="field">
+      <span>نام نمایشی سرور <i>*</i></span>
+      <input name="name" required maxlength="120" placeholder="مثلاً آلمان 01">
+    </label>
+    <label class="field">
+      <span>دامنهٔ متصل به VPS <i>*</i></span>
+      <input name="host" required maxlength="255" placeholder="vpn.example.com" autocomplete="off">
+      <small class="field-help">رکورد DNS دامنه باید به IP عمومی همین VPS اشاره کند. برای نصب خودکار HTTPS، دامنه لازم است؛ اگر از CDN استفاده می‌کنی، بررسی کن درخواست‌های HTTP و پورت‌های کاربران واقعاً به VPS برسند.</small>
+    </label>
+    <label class="field field-span">
+      <span>Proxy IP یا دامنهٔ واسط (اختیاری)</span>
+      <input name="proxy_ip" placeholder="مثلاً IP یا دامنه‌ای که کاربران با آن متصل می‌شوند">
+      <small class="field-help">خالی بماند، دامنهٔ اصلی سرور در لینک‌های اتصال استفاده می‌شود.</small>
+    </label>
+    <details class="advanced-settings field-span">
+      <summary>تنظیمات اختیاری <small>معمولاً نیازی به تغییر نیست</small></summary>
+      <div class="form-grid advanced-grid">
+        <label class="field"><span>پورت شروع</span><input name="port_start" type="number" min="1024" max="65535" value="20000"></label>
+        <label class="field"><span>پورت پایان</span><input name="port_end" type="number" min="1024" max="65535" value="20100"></label>
+        <label class="field field-span"><span>یادداشت داخلی</span><input name="notes" maxlength="1000" placeholder="موقعیت سرور یا توضیحات مدیریتی"></label>
+      </div>
+    </details>
+    <div class="form-footer field-span">
+      <span class="checkline"><span class="status-pill status-success">نصب یک‌دستوری</span> پروتکل هنگام ساخت کاربر انتخاب می‌شود</span>
+      <button class="button button-primary" type="submit">＋ ذخیره و ساخت دستور نصب <span>↗</span></button>
+    </div>
+  </form>
+</section>
+
+<section class="nodes-grid">
+{% for node in nodes %}
+  <article class="panel-card node-card">
+    <div class="node-card-head">
+      <span class="node-symbol node-symbol-large">⌘</span>
+      <span class="status-pill status-{{ 'success' if node.enabled else 'muted' }}">{{ 'فعال' if node.enabled else 'غیرفعال' }}</span>
+    </div>
+    <h2>{{ node.name }}</h2>
+    <p class="node-address">{{ node.proxy_ip or node.host }}</p>
+    <div class="node-properties">
+      <div><small>بازهٔ پورت</small><b>{{ node.port_start }}–{{ node.port_end }}</b></div>
+      <div><small>کاربران ثبت‌شده</small><b>{{ counts[node.id] }}</b></div>
+      <div><small>HTTPS Agent</small><b class="truncate">{{ node.agent_url }}</b></div>
+      <div><small>TLS</small><b>{{ 'مسیر پیش‌فرض' if node.tls_cert_path else 'پس از نصب' }}</b></div>
+      <div><small>Reality</small><b>{{ 'آماده' if node.reality_public_key and node.reality_short_id else 'پس از نصب و تست' }}</b></div>
+    </div>
+
+    {% if setup_commands.get(node.id) %}
+    <div class="auto-install-block">
+      <div class="field-group-title"><span>دستور نصب خودکار</span><small>فقط روی همین VPS اجرا کن</small></div>
+      <p class="field-help">{{ setup_notes.get(node.id, '') }}</p>
+      <textarea readonly rows="4" id="install-command-{{ node.id }}" spellcheck="false">{{ setup_commands[node.id] }}</textarea>
+      <div class="form-footer">
+        <button class="button button-primary" type="button" data-copy-target="install-command-{{ node.id }}">کپی دستور نصب</button>
+        <span class="field-help">در SSH با کاربر root وارد VPS شو و دستور را Paste کن. اگر root نیستی، ابتدا به محیط root برو.</span>
+      </div>
+    </div>
+    {% else %}
+    <div class="notice notice-warning compact-notice"><span>!</span><p>{{ setup_notes.get(node.id, 'برای نصب خودکار به دامنهٔ واقعی نیاز است.') }}</p></div>
+    {% endif %}
+
+    <div class="node-edit-actions">
+      <details class="node-edit">
+        <summary class="button button-secondary button-wide">تنظیمات پایه <span>⌄</span></summary>
+        <form method="post" action="/nodes/{{ node.id }}/update" class="form-grid compact-edit">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="host" value="{{ node.host }}">
+          <input type="hidden" name="port_start" value="{{ node.port_start }}">
+          <input type="hidden" name="port_end" value="{{ node.port_end }}">
+          <input type="hidden" name="enabled" value="{{ 'true' if node.enabled else 'false' }}">
+          <label class="field"><span>نام</span><input name="name" value="{{ node.name }}" required maxlength="120"></label>
+          <label class="field field-span"><span>Proxy IP / دامنهٔ واسط</span><input name="proxy_ip" value="{{ node.proxy_ip or '' }}"></label>
+          <label class="field field-span"><span>یادداشت داخلی</span><input name="notes" value="{{ node.notes or '' }}" maxlength="1000"></label>
+          <button class="button button-primary field-span" type="submit">ذخیره تغییرات</button>
+        </form>
+      </details>
+      <div class="node-card-footer">
+        <form method="post" action="/nodes/{{ node.id }}/test">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="button button-small button-secondary" type="submit">آزمایش اتصال و همگام‌سازی خودکار</button>
+        </form>
+        <form method="post" action="/nodes/{{ node.id }}/delete" data-confirm="سرور حذف شود؟ سروری که کاربر دارد حذف نمی‌شود.">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="button button-small button-danger" type="submit">حذف سرور</button>
+        </form>
+      </div>
+    </div>
+  </article>
+{% else %}
+  <div class="panel-card empty-state"><span>⌘</span><b>هنوز سروری ثبت نشده</b><p>دامنهٔ VPS را وارد کن؛ دستور نصب خودکار برای همان سرور ساخته می‌شود.</p></div>
+{% endfor %}
+</section>
+{% endblock %}
